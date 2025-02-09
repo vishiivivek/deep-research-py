@@ -86,7 +86,10 @@ async def main(
             "[yellow]Researching your topic...[/yellow]", total=None
         )
         research_results = await deep_research(
-            query=combined_query, breadth=breadth, depth=depth, concurrency=concurrency
+            query=combined_query,
+            breadth=breadth,
+            depth=depth,
+            concurrency=concurrency,
         )
         progress.remove_task(task)
 
