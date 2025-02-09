@@ -23,10 +23,6 @@ class SerpQuery:
     research_goal: str
 
 
-# Increase this if you have higher API rate limits
-CONCURRENCY_LIMIT = 2
-
-
 class Firecrawl:
     """Simple wrapper for Firecrawl SDK."""
 
@@ -223,6 +219,7 @@ async def deep_research(
     query: str,
     breadth: int,
     depth: int,
+    concurrency: int,
     learnings: List[str] = None,
     visited_urls: List[str] = None,
 ) -> ResearchResult:
@@ -245,7 +242,7 @@ async def deep_research(
     )
 
     # Create a semaphore to limit concurrent requests
-    semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
+    semaphore = asyncio.Semaphore(concurrency)
 
     async def process_query(serp_query: SerpQuery) -> ResearchResult:
         async with semaphore:
@@ -313,4 +310,3 @@ async def deep_research(
     all_urls = list(set(url for result in results for url in result["visited_urls"]))
 
     return {"learnings": all_learnings, "visited_urls": all_urls}
-

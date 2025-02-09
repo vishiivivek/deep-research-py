@@ -1,10 +1,11 @@
+import asyncio
 import typer
+from functools import wraps
+from prompt_toolkit import PromptSession
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print as rprint
-import asyncio
-from prompt_toolkit import PromptSession
 
 from deep_research_py.deep_research import deep_research, write_final_report
 from deep_research_py.feedback import generate_feedback
@@ -14,15 +15,27 @@ console = Console()
 session = PromptSession()
 
 
+def coro(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(f(*args, **kwargs))
+
+    return wrapper
+
+
 async def async_prompt(message: str, default: str = "") -> str:
     """Async wrapper for prompt_toolkit."""
     return await session.prompt_async(message)
 
 
 @app.command()
-async def main():
+@coro
+async def main(
+    concurrency: int = typer.Option(
+        default=2, help="Number of concurrent tasks, depending on your API rate limits."
+    ),
+):
     """Deep Research CLI"""
-
     console.print(
         Panel.fit(
             "[bold blue]Deep Research Assistant[/bold blue]\n"
@@ -73,7 +86,7 @@ async def main():
             "[yellow]Researching your topic...[/yellow]", total=None
         )
         research_results = await deep_research(
-            query=combined_query, breadth=breadth, depth=depth
+            query=combined_query, breadth=breadth, depth=depth, concurrency=concurrency
         )
         progress.remove_task(task)
 
@@ -109,9 +122,8 @@ async def main():
 
 def run():
     """Synchronous entry point for the CLI tool."""
-    asyncio.run(main())
+    asyncio.run(app())
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
-
+    asyncio.run(app())
