@@ -286,6 +286,7 @@ async def deep_research(
                         query=next_query,
                         breadth=new_breadth,
                         depth=new_depth,
+                        concurrency=concurrency,
                         learnings=all_learnings,
                         visited_urls=all_urls,
                     )
