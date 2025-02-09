@@ -67,6 +67,18 @@ You'll be prompted to:
 4. Answer follow-up questions
 5. Wait while it researches and generates a report
 
+You can change the concurrency level by setting the `--concurrency` flag (useful if you have a high API rate limit):
+
+```bash
+deep-research --concurrency 10
+```
+
+You can get a list of available commands:
+
+```bash
+deep-research --help
+```
+
 ## Development Setup
 
 Clone the repository and set up your environment:
