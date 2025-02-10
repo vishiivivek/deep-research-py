@@ -46,6 +46,8 @@ Set your API keys as environment variables:
 ```bash
 # Required: OpenAI API key
 export OPENAI_API_KEY=your-openai-key-here
+# If you want to use a third-party OpenAI compliant API (e.g., vLLM), add the following below:
+# export OPENAI_ENDPOINT="http://localhost:1234/v1"
 
 # Required: Firecrawl API key
 export FIRECRAWL_KEY=your-firecrawl-key-here
