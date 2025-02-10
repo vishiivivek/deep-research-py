@@ -120,7 +120,7 @@ async def generate_serp_queries(
 
 async def process_serp_result(
     query: str,
-    result: SearchResponse,
+    search_result: SearchResponse,
     num_learnings: int = 3,
     num_follow_up_questions: int = 3,
 ) -> Dict[str, List[str]]:
@@ -128,7 +128,7 @@ async def process_serp_result(
 
     contents = [
         trim_prompt(item.get("markdown", ""), 25_000)
-        for item in result["data"]
+        for item in search_result["data"]
         if item.get("markdown")
     ]
 
@@ -264,7 +264,7 @@ async def deep_research(
                 # Process the search results
                 new_learnings = await process_serp_result(
                     query=serp_query.query,
-                    result=result,
+                    search_result=result,
                     num_follow_up_questions=new_breadth,
                 )
 
