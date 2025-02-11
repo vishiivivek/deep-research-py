@@ -88,7 +88,7 @@ Clone the repository and set up your environment:
 
 ```bash
 # Clone the repository
-git clone https://github.com/epuerta0/deep-research-py.git
+git clone https://github.com/epuerta9/deep-research-py.git
 cd deep-research-py
 
 # Create and activate virtual environment
