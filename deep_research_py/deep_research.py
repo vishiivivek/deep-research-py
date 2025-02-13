@@ -145,7 +145,7 @@ async def process_serp_result(
     prompt = (
         f"Given the following contents from a SERP search for the query <query>{query}</query>, "
         f"generate a list of learnings from the contents. Return a JSON object with 'learnings' "
-        f"and 'followUpQuestions' arrays. Include up to {num_learnings} learnings and "
+        f"and 'followUpQuestions' keys with array of strings as values. Include up to {num_learnings} learnings and "
         f"{num_follow_up_questions} follow-up questions. The learnings should be unique, "
         "concise, and information-dense, including entities, metrics, numbers, and dates.\n\n"
         f"<contents>{contents_str}</contents>"
@@ -263,61 +263,63 @@ async def deep_research(
 
     async def process_query(serp_query: SerpQuery) -> ResearchResult:
         async with semaphore:
-            # try:
-            # Search for content
-            result = await firecrawl.search(serp_query.query, timeout=15000, limit=5)
+            try:
+                # Search for content
+                result = await firecrawl.search(
+                    serp_query.query, timeout=15000, limit=5
+                )
 
-            # Collect new URLs
-            new_urls = [item.get("url") for item in result["data"] if item.get("url")]
+                # Collect new URLs
+                new_urls = [
+                    item.get("url") for item in result["data"] if item.get("url")
+                ]
 
-            # Calculate new breadth and depth for next iteration
-            new_breadth = max(1, breadth // 2)
-            new_depth = depth - 1
+                # Calculate new breadth and depth for next iteration
+                new_breadth = max(1, breadth // 2)
+                new_depth = depth - 1
 
-            # Process the search results
-            new_learnings = await process_serp_result(
-                query=serp_query.query,
-                search_result=result,
-                num_follow_up_questions=new_breadth,
-                client=client,
-                model=model,
-            )
-
-            all_learnings = learnings + new_learnings["learnings"]
-            all_urls = visited_urls + new_urls
-
-            # If we have more depth to go, continue research
-            if new_depth > 0:
-                print(f"Researching deeper, breadth: {new_breadth}, depth: {new_depth}")
-
-                print(serp_query.research_goal)
-                print(new_learnings["followUpQuestions"])
-                next_query = f"""
-                Previous research goal: {serp_query.research_goal}
-                Follow-up research directions: {" ".join(new_learnings["followUpQuestions"])}
-                """.strip()
-
-                print("next_query: ", isinstance(next_query, str))
-
-                return await deep_research(
-                    query=next_query,
-                    breadth=new_breadth,
-                    depth=new_depth,
-                    concurrency=concurrency,
-                    learnings=all_learnings,
-                    visited_urls=all_urls,
+                # Process the search results
+                new_learnings = await process_serp_result(
+                    query=serp_query.query,
+                    search_result=result,
+                    num_follow_up_questions=new_breadth,
                     client=client,
                     model=model,
                 )
 
-            return {"learnings": all_learnings, "visited_urls": all_urls}
+                all_learnings = learnings + new_learnings["learnings"]
+                all_urls = visited_urls + new_urls
 
-            # except Exception as e:
-            #     if "Timeout" in str(e):
-            #         print(f"Timeout error running query: {serp_query.query}: {e}")
-            #     else:
-            #         print(f"Error running query: {serp_query.query}: {e}")
-            #     return {"learnings": [], "visited_urls": []}
+                # If we have more depth to go, continue research
+                if new_depth > 0:
+                    print(
+                        f"Researching deeper, breadth: {new_breadth}, depth: {new_depth}"
+                    )
+
+                    next_query = f"""
+                    Previous research goal: {serp_query.research_goal}
+                    Follow-up research directions: {" ".join(new_learnings["followUpQuestions"])}
+                    """.strip()
+
+                    return await deep_research(
+                        query=next_query,
+                        breadth=new_breadth,
+                        depth=new_depth,
+                        concurrency=concurrency,
+                        learnings=all_learnings,
+                        visited_urls=all_urls,
+                        client=client,
+                        model=model,
+                    )
+
+                return {"learnings": all_learnings, "visited_urls": all_urls}
+
+            except Exception as e:
+                if "Timeout" in str(e):
+                    print(f"Timeout error running query: {serp_query.query}: {e}")
+                else:
+                    print(f"Error running query: {serp_query.query}: {e}")
+                return {"learnings": [], "visited_urls": []}
 
     # Process all queries concurrently
     results = await asyncio.gather(*[process_query(query) for query in serp_queries])
