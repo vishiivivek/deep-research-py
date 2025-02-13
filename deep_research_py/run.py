@@ -9,6 +9,7 @@ from rich import print as rprint
 
 from deep_research_py.deep_research import deep_research, write_final_report
 from deep_research_py.feedback import generate_feedback
+from .ai.providers import get_ai_client
 
 app = typer.Typer()
 console = Console()
@@ -34,6 +35,10 @@ async def main(
     concurrency: int = typer.Option(
         default=2, help="Number of concurrent tasks, depending on your API rate limits."
     ),
+    service: str = typer.Option(
+        default="openai", help="Which service to use? [openai|deepseek]"
+    ),
+    model: str = typer.Option(default="o3-mini", help="Which model to use?"),
 ):
     """Deep Research CLI"""
     console.print(
@@ -42,6 +47,10 @@ async def main(
             "[dim]An AI-powered research tool[/dim]"
         )
     )
+
+    console.print(f"🛠️ Using [bold green]{service.upper()}[/bold green] service.")
+
+    client = get_ai_client(service, console)
 
     # Get initial inputs with clear formatting
     query = await async_prompt("\n🔍 What would you like to research? ")
@@ -57,7 +66,7 @@ async def main(
 
     # First show progress for research plan
     console.print("\n[yellow]Creating research plan...[/yellow]")
-    follow_up_questions = await generate_feedback(query)
+    follow_up_questions = await generate_feedback(query, client, model)
 
     # Then collect answers separately from progress display
     console.print("\n[bold yellow]Follow-up Questions:[/bold yellow]")
@@ -90,6 +99,8 @@ async def main(
             breadth=breadth,
             depth=depth,
             concurrency=concurrency,
+            client=client,
+            model=model,
         )
         progress.remove_task(task)
 
@@ -104,6 +115,8 @@ async def main(
             prompt=combined_query,
             learnings=research_results["learnings"],
             visited_urls=research_results["visited_urls"],
+            client=client,
+            model=model,
         )
         progress.remove_task(task)
 
