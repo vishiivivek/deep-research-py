@@ -4,7 +4,7 @@ An AI-powered research tool in Python that helps you explore topics in depth usi
 
 ## Save 200 dollars a month and use this tool
 
-⭐ A python port with a little more cli pizzazz of [https://github.com/dzhng/deep-research](https://github.com/dzhng/deep-research) 
+⭐ A python port with a little more cli pizzazz of [https://github.com/dzhng/deep-research](https://github.com/dzhng/deep-research)
 
 Contribute all you want to this. It was fun tweaking it.
 
@@ -47,7 +47,9 @@ Set your API keys as environment variables:
 # Required: OpenAI API key
 export OPENAI_API_KEY=your-openai-key-here
 # If you want to use a third-party OpenAI compliant API (e.g., OpenRouter or Gemini), add the following below:
-# export OPENAI_ENDPOINT="http://localhost:1234/v1"
+# export OPENAI_API_ENDPOINT="http://localhost:1234/v1"
+# If you want to use another model or your third-party OpenAI compliant API doesn't support o3-mini, add following below:
+# export OPENAI_MODEL="<your_model_name>"
 
 # Required: Firecrawl API key
 export FIRECRAWL_KEY=your-firecrawl-key-here
@@ -92,7 +94,7 @@ git clone https://github.com/epuerta9/deep-research-py.git
 cd deep-research-py
 
 # Create and activate virtual environment
-uv venv 
+uv venv
 source .venv/bin/activate
 
 # Install in development mode
@@ -150,4 +152,3 @@ pre-commit install
 6. Commit your changes (`git commit -m 'Add amazing feature'`)
 7. Push to the branch (`git push origin feature/amazing-feature`)
 8. Open a Pull Request
-
