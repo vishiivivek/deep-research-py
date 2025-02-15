@@ -1,6 +1,6 @@
 [project]
 name = "deep-research-py"
-version = "0.1.3"
+version = "0.1.4"
 description = "An AI-powered deep research assistant in python"
 authors = [
     { name = "Esteban Puerta", email = "epuer94@gmail.com" }
