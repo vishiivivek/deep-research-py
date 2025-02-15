@@ -52,7 +52,7 @@ export OPENAI_API_KEY=your-openai-key-here
 # export OPENAI_MODEL="<your_model_name>"
 
 # Required: Firecrawl API key
-export FIRECRAWL_KEY=your-firecrawl-key-here
+export FIRECRAWL_API_KEY=your-firecrawl-key-here
 # If you want to use your self-hosted Firecrawl, add the following below:
 # FIRECRAWL_BASE_URL="http://localhost:3002"
 ```
