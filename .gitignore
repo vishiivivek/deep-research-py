@@ -6,6 +6,8 @@ __pycache__/
 # C extensions
 *.so
 
+output.md
+
 # Distribution / packaging
 .Python
 build/

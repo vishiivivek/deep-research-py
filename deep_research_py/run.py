@@ -11,7 +11,7 @@ from rich import print as rprint
 
 from deep_research_py.deep_research import deep_research, write_final_report
 from deep_research_py.feedback import generate_feedback
-from .ai.providers import get_ai_client
+from deep_research_py.ai.providers import get_ai_client
 
 load_dotenv()
 
@@ -40,11 +40,12 @@ async def main(
         default=2, help="Number of concurrent tasks, depending on your API rate limits."
     ),
     service: str = typer.Option(
-        default=os.getenv("DEFAULT_SERVICE"),
+        default="openai",
         help="Which service to use? [openai|deepseek]",
     ),
     model: str = typer.Option(
-        default=os.getenv("OPENAI_MODEL"), help="Which model to use?"
+        default="o3-mini",
+        help="Which model to use?"
     ),
 ):
     """Deep Research CLI"""
