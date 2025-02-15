@@ -1,19 +1,18 @@
-import os
 from typing import List
 import asyncio
+import openai
 import json
-from .ai.providers import openai_client
 from .prompt import system_prompt
 
 
-async def generate_feedback(query: str) -> List[str]:
+async def generate_feedback(query: str, client: openai.OpenAI, model: str) -> List[str]:
     """Generates follow-up questions to clarify research direction."""
 
     # Run OpenAI call in thread pool since it's synchronous
     response = await asyncio.get_event_loop().run_in_executor(
         None,
-        lambda: openai_client.chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", "o3-mini"),
+        lambda: client.chat.completions.create(
+            model=model,
             messages=[
                 {"role": "system", "content": system_prompt()},
                 {
