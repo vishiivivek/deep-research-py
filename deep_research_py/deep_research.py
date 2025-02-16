@@ -6,6 +6,10 @@ from firecrawl import FirecrawlApp
 from .ai.providers import trim_prompt, generate_completions
 from .prompt import system_prompt
 from .common.logging import log_event, log_error
+from .common.token_cunsumption import (
+    parse_ollama_token_consume,
+    parse_openai_token_consume,
+)
 from .utils import get_service
 import json
 from pydantic import BaseModel
@@ -18,7 +22,6 @@ class SearchResponse(TypedDict):
 class ResearchResult(TypedDict):
     learnings: List[str]
     visited_urls: List[str]
-
 
 
 class SerpQuery(BaseModel):
@@ -88,9 +91,10 @@ firecrawl = Firecrawl(
     api_url=os.environ.get("FIRECRAWL_BASE_URL"),
 )
 
+
 class SerpQueryResponse(BaseModel):
     queries: List[SerpQuery]
-    
+
 
 async def generate_serp_queries(
     query: str,
@@ -119,9 +123,13 @@ async def generate_serp_queries(
     try:
         if get_service() == "ollama":
             result = SerpQueryResponse.model_validate_json(response.message.content)
+            parse_ollama_token_consume("generate_serp_queries", response)
         else:
-            result = SerpQueryResponse.model_validate_json(response.choices[0].message.content)
-            
+            result = SerpQueryResponse.model_validate_json(
+                response.choices[0].message.content
+            )
+            parse_openai_token_consume("generate_serp_queries", response)
+
         queries = result.queries if result.queries else []
         log_event(f"Generated {len(queries)} SERP queries for research query: {query}")
         log_event(f"Got queries: {queries}")
@@ -134,10 +142,12 @@ async def generate_serp_queries(
         )
         return []
 
+
 class SerpResultResponse(BaseModel):
     learnings: List[str]
     followUpQuestions: List[str]
-    
+
+
 async def process_serp_result(
     query: str,
     search_result: SearchResponse,
@@ -179,9 +189,13 @@ async def process_serp_result(
     try:
         if get_service() == "ollama":
             result = SerpResultResponse.model_validate_json(response.message.content)
+            parse_ollama_token_consume("process_serp_result", response)
         else:
-            result = SerpResultResponse.model_validate_json(response.choices[0].message.content)
-        
+            result = SerpResultResponse.model_validate_json(
+                response.choices[0].message.content
+            )
+            parse_openai_token_consume("process_serp_result", response)
+
         log_event(
             f"Processed SERP results for query: {query}, found {len(result.learnings)} learnings and {len(result.followUpQuestions)} follow-up questions"
         )
@@ -190,9 +204,7 @@ async def process_serp_result(
         )
         return {
             "learnings": result.learnings[:num_learnings],
-            "followUpQuestions": result.followUpQuestions[
-                :num_follow_up_questions
-            ],
+            "followUpQuestions": result.followUpQuestions[:num_follow_up_questions],
         }
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
@@ -202,8 +214,10 @@ async def process_serp_result(
         )
         return {"learnings": [], "followUpQuestions": []}
 
+
 class FinalReportResponse(BaseModel):
     reportMarkdown: str
+
 
 async def write_final_report(
     prompt: str,
@@ -227,7 +241,6 @@ async def write_final_report(
         f"Here are all the learnings from research:\n\n<learnings>\n{learnings_string}\n</learnings>"
     )
 
-    
     response = await generate_completions(
         client=client,
         model=model,
@@ -241,9 +254,13 @@ async def write_final_report(
     try:
         if get_service() == "ollama":
             result = FinalReportResponse.model_validate_json(response.message.content)
+            parse_ollama_token_consume("write_final_report", response)
         else:
-            result = FinalReportResponse.model_validate_json(response.choices[0].message.content)
-            
+            result = FinalReportResponse.model_validate_json(
+                response.choices[0].message.content
+            )
+            parse_openai_token_consume("write_final_report", response)
+
         report = result.reportMarkdown if result.reportMarkdown else ""
         log_event(
             f"Generated final report based on {len(learnings)} learnings from {len(visited_urls)} sources"

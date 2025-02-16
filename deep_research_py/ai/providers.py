@@ -71,18 +71,16 @@ MIN_CHUNK_SIZE = 140
 
 def get_token_count(text: str) -> int:
     """Returns the number of tokens in a given text."""
-    
+
     service = get_service()
-    
+
     if service.lower() == "openai":
         encoder = tiktoken.get_encoding(
-        "cl100k_base"
+            "cl100k_base"
         )  # Updated to use OpenAI's current encoding
         return len(encoder.encode(text))
     elif service.lower() == "deepseek":
-        encoder = tiktoken.get_encoding(
-            "cl100k_base"
-        )
+        encoder = tiktoken.get_encoding("cl100k_base")
         return len(encoder.encode(text))
     elif service.lower() == "ollama":
         # For Ollama, we can use the same encoding as OpenAI
@@ -125,10 +123,7 @@ async def generate_completions(client, model, messages, format):
         response = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: client.chat(
-                model=model,
-                messages=messages,
-                stream=False,
-                format=format
+                model=model, messages=messages, stream=False, format=format
             ),
         )
     else:
@@ -136,9 +131,7 @@ async def generate_completions(client, model, messages, format):
         response = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: client.chat.completions.create(
-                model=model,
-                messages=messages,
-                response_format=format
+                model=model, messages=messages, response_format=format
             ),
         )
     return response

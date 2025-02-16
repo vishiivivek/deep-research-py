@@ -12,6 +12,8 @@ from deep_research_py.feedback import generate_feedback
 from deep_research_py.ai.providers import get_ai_client
 
 from deep_research_py.utils import console, set_service, set_model
+from deep_research_py.common.token_cunsumption import counter
+from deep_research_py.common.logging import log_event
 
 load_dotenv()
 app = typer.Typer()
@@ -58,10 +60,10 @@ async def main(
         default=False,
         help="Log to stdout.",
     ),
-):  
+):
     set_service(service.lower())
     set_model(model)
-    
+
     """Initialize the Logger"""
     if enable_logging:
         from deep_research_py.common.logging import initial_logger
@@ -169,7 +171,19 @@ async def main(
         # Save report
         with open("output.md", "w") as f:
             f.write(report)
-        console.print("\n[dim]Report has been saved to output.md[/dim]")
+
+        if enable_logging:
+            log_event(
+                (
+                    f"\nReport has been saved to output.md"
+                    f"\nToken usage:"
+                    f"Total Input Tokens: {counter.total_input_tokens} "
+                    f"Total Output Tokens: {counter.total_output_tokens} "
+                    f"Total Reasoning Tokens: {counter.total_reasoning_tokens} "
+                    "\nToken usage details:\n"
+                    f"{counter}"
+                )
+            )
 
 
 def run():

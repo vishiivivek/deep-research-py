@@ -5,22 +5,28 @@ import json
 from .prompt import system_prompt
 from .common.logging import log_error, log_event
 from .ai.providers import generate_completions
+from .common.token_cunsumption import (
+    parse_ollama_token_consume,
+    parse_openai_token_consume,
+)
 from deep_research_py.utils import get_service
 from pydantic import BaseModel
+
 
 class FeedbackResponse(BaseModel):
     questions: List[str]
 
 
 async def generate_feedback(
-    query: str, client: Optional[openai.OpenAI | ollama.Client], model: str, max_feedbacks: int = 5
+    query: str,
+    client: Optional[openai.OpenAI | ollama.Client],
+    model: str,
+    max_feedbacks: int = 5,
 ) -> List[str]:
     """Generates follow-up questions to clarify research direction."""
 
-    prompt = (
-        f"Given this research topic: {query}, generate at most {max_feedbacks} follow-up questions to better understand the user's research needs, but feel free to return none questions if the original query is clear. Return the response as a JSON object with a 'questions' array field."
-    )
-    
+    prompt = f"Given this research topic: {query}, generate at most {max_feedbacks} follow-up questions to better understand the user's research needs, but feel free to return none questions if the original query is clear. Return the response as a JSON object with a 'questions' array field."
+
     response = await generate_completions(
         client=client,
         model=model,
@@ -38,9 +44,12 @@ async def generate_feedback(
     try:
         if get_service() == "ollama":
             result = json.loads(response.message.content)
+            parse_ollama_token_consume("generate_feedback", response)
         else:
             # OpenAI compatible API
             result = json.loads(response.choices[0].message.content)
+            parse_openai_token_consume("generate_feedback", response)
+
         log_event(
             f"Generated {len(result.get('questions', []))} follow-up questions for query: {query}"
         )
