@@ -3,7 +3,6 @@ import asyncio
 import typer
 from functools import wraps
 from prompt_toolkit import PromptSession
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print as rprint

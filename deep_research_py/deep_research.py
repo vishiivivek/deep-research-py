@@ -1,5 +1,4 @@
 from typing import List, Dict, TypedDict, Optional
-from dataclasses import dataclass
 import asyncio
 import os
 import openai

@@ -1,12 +1,11 @@
 from typing import List, Optional
-import asyncio
 import openai
 import ollama
 import json
 from .prompt import system_prompt
 from .common.logging import log_error, log_event
 from .ai.providers import generate_completions
-from deep_research_py.utils import get_service, get_model
+from deep_research_py.utils import get_service
 from pydantic import BaseModel
 
 class FeedbackResponse(BaseModel):

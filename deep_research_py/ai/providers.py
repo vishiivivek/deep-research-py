@@ -3,7 +3,6 @@ import os
 import typer
 import tiktoken
 from typing import Optional
-from rich.console import Console
 from dotenv import load_dotenv
 from .text_splitter import RecursiveCharacterTextSplitter
 
