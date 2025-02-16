@@ -109,4 +109,3 @@ class RecursiveCharacterTextSplitter(TextSplitter):
             final_chunks.extend(merged_text)
 
         return final_chunks
-

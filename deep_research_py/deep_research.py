@@ -4,9 +4,12 @@ import asyncio
 import os
 import openai
 from firecrawl import FirecrawlApp
-from .ai.providers import trim_prompt
+from .ai.providers import trim_prompt, generate_completions
 from .prompt import system_prompt
+from .common.logging import log_event, log_error
+from .utils import get_service
 import json
+from pydantic import BaseModel
 
 
 class SearchResponse(TypedDict):
@@ -18,8 +21,8 @@ class ResearchResult(TypedDict):
     visited_urls: List[str]
 
 
-@dataclass
-class SerpQuery:
+
+class SerpQuery(BaseModel):
     query: str
     research_goal: str
 
@@ -86,6 +89,9 @@ firecrawl = Firecrawl(
     api_url=os.environ.get("FIRECRAWL_BASE_URL"),
 )
 
+class SerpQueryResponse(BaseModel):
+    queries: List[SerpQuery]
+    
 
 async def generate_serp_queries(
     query: str,
@@ -101,28 +107,38 @@ async def generate_serp_queries(
     if learnings:
         prompt += f"\n\nHere are some learnings from previous research, use them to generate more specific queries: {' '.join(learnings)}"
 
-    response = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt()},
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-        ),
+    response = await generate_completions(
+        client=client,
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt()},
+            {"role": "user", "content": prompt},
+        ],
+        format=SerpQueryResponse.model_json_schema(),
     )
 
     try:
-        result = json.loads(response.choices[0].message.content)
-        queries = result.get("queries", [])
-        return [SerpQuery(**q) for q in queries][:num_queries]
+        if get_service() == "ollama":
+            result = SerpQueryResponse.model_validate_json(response.message.content)
+        else:
+            result = SerpQueryResponse.model_validate_json(response.choices[0].message.content)
+            
+        queries = result.queries if result.queries else []
+        log_event(f"Generated {len(queries)} SERP queries for research query: {query}")
+        log_event(f"Got queries: {queries}")
+        return queries[:num_queries]
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
         print(f"Raw response: {response.choices[0].message.content}")
+        log_error(
+            f"Failed to parse JSON response for query: {query}, raw response: {response.choices[0].message.content}"
+        )
         return []
 
-
+class SerpResultResponse(BaseModel):
+    learnings: List[str]
+    followUpQuestions: List[str]
+    
 async def process_serp_result(
     query: str,
     search_result: SearchResponse,
@@ -151,31 +167,44 @@ async def process_serp_result(
         f"<contents>{contents_str}</contents>"
     )
 
-    response = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt()},
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-        ),
+    response = await generate_completions(
+        client=client,
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt()},
+            {"role": "user", "content": prompt},
+        ],
+        format=SerpResultResponse.model_json_schema(),
     )
 
     try:
-        result = json.loads(response.choices[0].message.content)
+        if get_service() == "ollama":
+            result = SerpResultResponse.model_validate_json(response.message.content)
+        else:
+            result = SerpResultResponse.model_validate_json(response.choices[0].message.content)
+        
+        log_event(
+            f"Processed SERP results for query: {query}, found {len(result.learnings)} learnings and {len(result.followUpQuestions)} follow-up questions"
+        )
+        log_event(
+            f"Got learnings: {len(result.learnings)} and follow-up questions: {len(result.followUpQuestions)}"
+        )
         return {
-            "learnings": result.get("learnings", [])[:num_learnings],
-            "followUpQuestions": result.get("followUpQuestions", [])[
+            "learnings": result.learnings[:num_learnings],
+            "followUpQuestions": result.followUpQuestions[
                 :num_follow_up_questions
             ],
         }
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
         print(f"Raw response: {response.choices[0].message.content}")
+        log_error(
+            f"Failed to parse SERP results for query: {query}, raw response: {response.choices[0].message.content}"
+        )
         return {"learnings": [], "followUpQuestions": []}
 
+class FinalReportResponse(BaseModel):
+    reportMarkdown: str
 
 async def write_final_report(
     prompt: str,
@@ -199,22 +228,27 @@ async def write_final_report(
         f"Here are all the learnings from research:\n\n<learnings>\n{learnings_string}\n</learnings>"
     )
 
-    response = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt()},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-        ),
+    
+    response = await generate_completions(
+        client=client,
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt()},
+            {"role": "user", "content": user_prompt},
+        ],
+        format=FinalReportResponse.model_json_schema(),
     )
 
     try:
-        result = json.loads(response.choices[0].message.content)
-        report = result.get("reportMarkdown", "")
-
+        if get_service() == "ollama":
+            result = FinalReportResponse.model_validate_json(response.message.content)
+        else:
+            result = FinalReportResponse.model_validate_json(response.choices[0].message.content)
+            
+        report = result.reportMarkdown if result.reportMarkdown else ""
+        log_event(
+            f"Generated final report based on {len(learnings)} learnings from {len(visited_urls)} sources"
+        )
         # Append sources
         urls_section = "\n\n## Sources\n\n" + "\n".join(
             [f"- {url}" for url in visited_urls]
@@ -223,6 +257,9 @@ async def write_final_report(
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
         print(f"Raw response: {response.choices[0].message.content}")
+        log_error(
+            f"Failed to generate final report for research query, raw response: {response.choices[0].message.content}"
+        )
         return "Error generating report"
 
 
