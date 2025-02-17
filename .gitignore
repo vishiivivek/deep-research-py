@@ -171,3 +171,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Remove macOS .DS_Store
+.DS_Store

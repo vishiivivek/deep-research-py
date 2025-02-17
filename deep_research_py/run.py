@@ -1,10 +1,8 @@
-import os
 from dotenv import load_dotenv
 import asyncio
 import typer
 from functools import wraps
 from prompt_toolkit import PromptSession
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print as rprint
@@ -13,10 +11,12 @@ from deep_research_py.deep_research import deep_research, write_final_report
 from deep_research_py.feedback import generate_feedback
 from deep_research_py.ai.providers import get_ai_client
 
-load_dotenv()
+from deep_research_py.utils import console, set_service, set_model
+from deep_research_py.common.token_cunsumption import counter
+from deep_research_py.common.logging import log_event
 
+load_dotenv()
 app = typer.Typer()
-console = Console()
 session = PromptSession()
 
 
@@ -43,11 +43,34 @@ async def main(
         default="openai",
         help="Which service to use? [openai|deepseek]",
     ),
-    model: str = typer.Option(
-        default="o3-mini",
-        help="Which model to use?"
+    model: str = typer.Option(default="o3-mini", help="Which model to use?"),
+    max_followup_questions: int = typer.Option(
+        default=5,
+        help="Maximum number of follow-up questions to generate.",
+    ),
+    enable_logging: bool = typer.Option(
+        default=False,
+        help="Enable logging.",
+    ),
+    log_path: str = typer.Option(
+        default="logs",
+        help="Path to save the logs.",
+    ),
+    log_to_stdout: bool = typer.Option(
+        default=False,
+        help="Log to stdout.",
     ),
 ):
+    set_service(service.lower())
+    set_model(model)
+
+    """Initialize the Logger"""
+    if enable_logging:
+        from deep_research_py.common.logging import initial_logger
+
+        initial_logger(logging_path=log_path, enable_stdout=log_to_stdout)
+        console.print(f"[dim]Logging enabled. Logs will be saved to {log_path}[/dim]")
+
     """Deep Research CLI"""
     console.print(
         Panel.fit(
@@ -58,7 +81,7 @@ async def main(
 
     console.print(f"🛠️ Using [bold green]{service.upper()}[/bold green] service.")
 
-    client = get_ai_client(service, console)
+    client = get_ai_client()
 
     # Get initial inputs with clear formatting
     query = await async_prompt("\n🔍 What would you like to research? ")
@@ -74,16 +97,23 @@ async def main(
 
     # First show progress for research plan
     console.print("\n[yellow]Creating research plan...[/yellow]")
-    follow_up_questions = await generate_feedback(query, client, model)
+    follow_up_questions = await generate_feedback(
+        query, client, model, max_followup_questions
+    )
 
-    # Then collect answers separately from progress display
-    console.print("\n[bold yellow]Follow-up Questions:[/bold yellow]")
-    answers = []
-    for i, question in enumerate(follow_up_questions, 1):
-        console.print(f"\n[bold blue]Q{i}:[/bold blue] {question}")
-        answer = await async_prompt("➤ Your answer: ")
-        answers.append(answer)
-        console.print()
+    if len(follow_up_questions) != 0:
+        # Then collect answers separately from progress display
+        console.print("\n[bold yellow]Follow-up Questions:[/bold yellow]")
+        answers = []
+        for i, question in enumerate(follow_up_questions, 1):
+            console.print(f"\n[bold blue]Q{i}:[/bold blue] {question}")
+            answer = await async_prompt("➤ Your answer: ")
+            answers.append(answer)
+            console.print()
+
+    else:
+        console.print("\n[bold green]No follow-up questions needed![/bold green]")
+        answers = []
 
     # Combine information
     combined_query = f"""
@@ -141,7 +171,19 @@ async def main(
         # Save report
         with open("output.md", "w") as f:
             f.write(report)
-        console.print("\n[dim]Report has been saved to output.md[/dim]")
+
+        if enable_logging:
+            log_event(
+                (
+                    f"\nReport has been saved to output.md"
+                    f"\nToken usage:"
+                    f"Total Input Tokens: {counter.total_input_tokens} "
+                    f"Total Output Tokens: {counter.total_output_tokens} "
+                    f"Total Reasoning Tokens: {counter.total_reasoning_tokens} "
+                    "\nToken usage details:\n"
+                    f"{counter}"
+                )
+            )
 
 
 def run():

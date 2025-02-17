@@ -45,9 +45,12 @@ Open `.env` and replace placeholder values with your actual API keys
 
 ### Set up environment variables in .env file:
 ```bash
-# Required: OpenAI API key
+# Required by service: "deepseek" and "openai"
 # unless you're using DeepSeek or another OpenAI-compliant API.
 OPENAI_API_KEY=your-openai-key-here
+
+# Optional: ollama related environment variable
+# OLLAMA_API_ENDPOINT=http://localhost:11434
 
 # Required: Firecrawl API key
 FIRECRAWL_API_KEY=your-firecrawl-key-here
@@ -56,6 +59,8 @@ FIRECRAWL_API_KEY=your-firecrawl-key-here
 ```
 
 Note: If you prefer, you can use DeepSeek instead of OpenAI. You can configure it in the `.env` file by setting the relevant API keys and model. Additionally, ensure that you set `DEFAULT_SERVICE` to `"deepseek"` if using DeepSeek or `"openai"` if using OpenAI.
+
+Note: If you want use ollama as your LLM service, set `DEFAULT_SERVICE` to `"ollama"` or use `--service` parameter.
 
 ## Usage
 
