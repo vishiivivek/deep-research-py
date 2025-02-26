@@ -1,6 +1,6 @@
 [project]
 name = "deep-research-py"
-version = "0.1.5"
+version = "0.1.6"
 description = "An AI-powered deep research assistant in python"
 authors = [
     { name = "Esteban Puerta", email = "epuer94@gmail.com" }
@@ -15,10 +15,16 @@ dependencies = [
     "typer[all]>=0.9.0",
     "rich>=13.7.0",
     "prompt-toolkit>=3.0.0",
+    "kitchenai-whisk",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+]
 
 [project.optional-dependencies]
 dev = [
