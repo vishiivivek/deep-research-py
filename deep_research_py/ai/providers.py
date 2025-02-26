@@ -1,17 +1,13 @@
-import asyncio
 import os
 import typer
 import tiktoken
 from typing import Optional
+from rich.console import Console
 from dotenv import load_dotenv
 from .text_splitter import RecursiveCharacterTextSplitter
 
-from deep_research_py.utils import console, get_service, get_model
-
 # Assuming we're using OpenAI's API
 import openai
-
-import ollama
 
 load_dotenv()
 
@@ -30,13 +26,24 @@ def create_deepseek_client(
     )
 
 
-def create_ollama_client(host: Optional[str] = None) -> ollama.Client:
-    return ollama.Client(host=host)
+# Initialize OpenAI client with better error handling
+try:
+    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_KEY")
+    if not api_key:
+        raise ValueError(
+            "DeepSeek API key not found. Please set OPENAI_API_KEY environment variable."
+        )
+
+    openai_client = create_openai_client(
+        api_key=api_key, base_url=os.getenv("OPENAI_API_ENDPOINT")
+    )
+except Exception as e:
+    print(f"Error initializing OpenAI client: {e}")
+    raise
 
 
-def get_ai_client() -> openai.OpenAI:
+def get_ai_client(service: str, console: Console) -> openai.OpenAI:
     # Decide which API key and endpoint to use
-    service = get_service()
     if service.lower() == "openai":
         api_key = os.getenv("OPENAI_API_KEY")
         endpoint = os.getenv("OPENAI_API_ENDPOINT", "https://api.openai.com/v1")
@@ -55,10 +62,6 @@ def get_ai_client() -> openai.OpenAI:
         client = create_deepseek_client(api_key=api_key, base_url=endpoint)
 
         return client
-    elif service.lower() == "ollama":
-        host = os.getenv("OLLAMA_API_ENDPOINT", "http://localhost:11434")
-        client = create_ollama_client(host=host)
-        return client
     else:
         console.print(
             "[red]Invalid service selected. Choose 'openai' or 'deepseek'.[/red]"
@@ -67,25 +70,9 @@ def get_ai_client() -> openai.OpenAI:
 
 
 MIN_CHUNK_SIZE = 140
-
-
-def get_token_count(text: str) -> int:
-    """Returns the number of tokens in a given text."""
-
-    service = get_service()
-
-    if service.lower() == "openai":
-        encoder = tiktoken.get_encoding(
-            "cl100k_base"
-        )  # Updated to use OpenAI's current encoding
-        return len(encoder.encode(text))
-    elif service.lower() == "deepseek":
-        encoder = tiktoken.get_encoding("cl100k_base")
-        return len(encoder.encode(text))
-    elif service.lower() == "ollama":
-        # For Ollama, we can use the same encoding as OpenAI
-        client = get_ai_client()
-        return len(client.embed(model=get_model(), input=text)["embeddings"][0])
+encoder = tiktoken.get_encoding(
+    "cl100k_base"
+)  # Updated to use OpenAI's current encoding
 
 
 def trim_prompt(
@@ -95,7 +82,7 @@ def trim_prompt(
     if not prompt:
         return ""
 
-    length = get_token_count(prompt)
+    length = len(encoder.encode(prompt))
     if length <= context_size:
         return prompt
 
@@ -116,22 +103,3 @@ def trim_prompt(
         return trim_prompt(prompt[:chunk_size], context_size)
 
     return trim_prompt(trimmed_prompt, context_size)
-
-
-async def generate_completions(client, model, messages, format):
-    if get_service() == "ollama":
-        response = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: client.chat(
-                model=model, messages=messages, stream=False, format=format
-            ),
-        )
-    else:
-        # Run OpenAI call in thread pool since it's synchronous
-        response = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: client.chat.completions.create(
-                model=model, messages=messages, response_format=format
-            ),
-        )
-    return response
