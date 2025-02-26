@@ -3,15 +3,17 @@ import asyncio
 import openai
 import json
 from .prompt import system_prompt
+from .ai.providers import get_client_response
 
 
 async def generate_feedback(query: str, client: openai.OpenAI, model: str) -> List[str]:
     """Generates follow-up questions to clarify research direction."""
 
     # Run OpenAI call in thread pool since it's synchronous
-    response = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: client.chat.completions.create(
+
+
+    response = await get_client_response(
+        client=client,
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt()},
@@ -21,14 +23,13 @@ async def generate_feedback(query: str, client: openai.OpenAI, model: str) -> Li
                 },
             ],
             response_format={"type": "json_object"},
-        ),
-    )
+        )
 
     # Parse the JSON response
     try:
-        result = json.loads(response.choices[0].message.content)
-        return result.get("questions", [])
+
+        return response.get("questions", [])
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
-        print(f"Raw response: {response.choices[0].message.content}")
+        print(f"Raw response: {response}")
         return []

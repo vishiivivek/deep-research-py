@@ -11,7 +11,8 @@ from rich import print as rprint
 
 from deep_research_py.deep_research import deep_research, write_final_report
 from deep_research_py.feedback import generate_feedback
-from deep_research_py.ai.providers import get_ai_client
+from deep_research_py.ai.providers import AIClientFactory
+from deep_research_py.config import EnvironmentConfig
 
 load_dotenv()
 
@@ -39,14 +40,6 @@ async def main(
     concurrency: int = typer.Option(
         default=2, help="Number of concurrent tasks, depending on your API rate limits."
     ),
-    service: str = typer.Option(
-        default="openai",
-        help="Which service to use? [openai|deepseek]",
-    ),
-    model: str = typer.Option(
-        default="o3-mini",
-        help="Which model to use?"
-    ),
 ):
     """Deep Research CLI"""
     console.print(
@@ -56,9 +49,14 @@ async def main(
         )
     )
 
+    service = EnvironmentConfig.get_default_provider()
+
     console.print(f"🛠️ Using [bold green]{service.upper()}[/bold green] service.")
 
-    client = get_ai_client(service, console)
+    client = AIClientFactory.get_client()
+    
+    # Get the model for the current provider
+    model = AIClientFactory.get_model()
 
     # Get initial inputs with clear formatting
     query = await async_prompt("\n🔍 What would you like to research? ")

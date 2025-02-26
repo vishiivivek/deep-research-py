@@ -1,73 +1,69 @@
 import os
 import typer
+import json
+from openai import AsyncOpenAI
+from pydantic import BaseModel
 import tiktoken
 from typing import Optional
 from rich.console import Console
 from dotenv import load_dotenv
 from .text_splitter import RecursiveCharacterTextSplitter
-
-# Assuming we're using OpenAI's API
-import openai
+from deep_research_py.config import EnvironmentConfig
 
 load_dotenv()
 
 
-def create_openai_client(api_key: str, base_url: Optional[str] = None) -> openai.OpenAI:
-    return openai.OpenAI(
-        api_key=api_key, base_url=base_url or "https://api.openai.com/v1"
-    )
 
+class AIClientFactory:
+    """Factory for creating AI clients for different providers."""
+    
+    @classmethod
+    def create_client(cls, api_key: str, base_url: str) -> AsyncOpenAI:
+        """Create an AsyncOpenAI-compatible client for the specified provider."""
+        return AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url
+        )
+    
+    @classmethod
+    def get_client(cls, service_provider_name: Optional[str] = None, console: Optional[Console] = None) -> AsyncOpenAI:
+        """Get a configured AsyncOpenAI client using environment variables."""
+        console = console or Console()
+        
+        try:
+            # Get and validate the provider configuration
+            config = EnvironmentConfig.validate_provider_config(service_provider_name, console)
+            
+            # Create the client
+            return cls.create_client(
+                api_key=config.api_key,
+                base_url=config.base_url
+            )
+            
+        except ValueError:
+            raise typer.Exit(1)
+        except Exception as e:
+            console.print(f"[red]Error initializing {service_provider_name or EnvironmentConfig.get_default_provider()} client: {e}[/red]")
+            raise typer.Exit(1)
+            
+    @classmethod
+    def get_model(cls, service_provider_name: Optional[str] = None) -> str:
+        """Get the configured model for the specified provider."""
+        config = EnvironmentConfig.get_provider_config(service_provider_name)
+        if not config.model:
+            raise ValueError(f"No model configured for {config.service_provider_name}")
+        return config.model
 
-def create_deepseek_client(
-    api_key: str, base_url: Optional[str] = None
-) -> openai.OpenAI:
-    return openai.OpenAI(
-        api_key=api_key, base_url=base_url or "https://api.deepseek.com/v1"
-    )
-
-
-# Initialize OpenAI client with better error handling
-try:
-    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_KEY")
-    if not api_key:
-        raise ValueError(
-            "DeepSeek API key not found. Please set OPENAI_API_KEY environment variable."
+async def get_client_response(client: AsyncOpenAI, model: str, messages: list, response_format: dict):
+    response = await client.beta.chat.completions.parse(
+            model=model,
+            messages=messages,
+            response_format=response_format,
         )
 
-    openai_client = create_openai_client(
-        api_key=api_key, base_url=os.getenv("OPENAI_API_ENDPOINT")
-    )
-except Exception as e:
-    print(f"Error initializing OpenAI client: {e}")
-    raise
+    result = response.choices[0].message.content
 
-
-def get_ai_client(service: str, console: Console) -> openai.OpenAI:
-    # Decide which API key and endpoint to use
-    if service.lower() == "openai":
-        api_key = os.getenv("OPENAI_API_KEY")
-        endpoint = os.getenv("OPENAI_API_ENDPOINT", "https://api.openai.com/v1")
-        if not api_key:
-            console.print("[red]Missing OPENAI_API_KEY in environment[/red]")
-            raise typer.Exit(1)
-        client = create_openai_client(api_key=api_key, base_url=endpoint)
-
-        return client
-    elif service.lower() == "deepseek":
-        api_key = os.getenv("DEEPSEEK_API_KEY")
-        endpoint = os.getenv("DEEPSEEK_API_ENDPOINT", "https://api.deepseek.com/v1")
-        if not api_key:
-            console.print("[red]Missing DEEPSEEK_API_KEY in environment[/red]")
-            raise typer.Exit(1)
-        client = create_deepseek_client(api_key=api_key, base_url=endpoint)
-
-        return client
-    else:
-        console.print(
-            "[red]Invalid service selected. Choose 'openai' or 'deepseek'.[/red]"
-        )
-        raise typer.Exit(1)
-
+    return json.loads(result)
 
 MIN_CHUNK_SIZE = 140
 encoder = tiktoken.get_encoding(
