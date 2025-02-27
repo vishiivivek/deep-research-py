@@ -10,24 +10,20 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install UV and add to PATH
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    echo 'export PATH="/root/.cargo/bin:$PATH"' >> ~/.bashrc && \
-    . ~/.bashrc
+# Install UV with tools support
+RUN pip install 'uv[tools]'
 
 # Copy project files
-COPY pyproject.toml uv.lock ./
-COPY deep_research_py/ ./deep_research_py/
+COPY . ./
 
-# Install dependencies using UV with explicit path
-RUN /root/.cargo/bin/uv pip install -e .
+# Install dependencies using UV with --system flag
+RUN uv sync
+
+# Run whisk with required dependencies
+CMD uv run whisk serve deep_research_py.whisk:kitchenai_app
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV MODULE_NAME=deep_research_py.whisk
 ENV VARIABLE_NAME=kitchenai_app
-ENV PORT=8000
-ENV PATH="/root/.cargo/bin:$PATH"
-
-# Command to run the application
-CMD ["whisk", "serve", "deep_research_py.whisk:kitchenai_app"] 
+ENV PORT=8000 
