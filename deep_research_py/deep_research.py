@@ -4,7 +4,7 @@ import asyncio
 import os
 import openai
 from firecrawl import FirecrawlApp
-from .ai.providers import trim_prompt
+from .ai.providers import trim_prompt, get_client_response
 from .prompt import system_prompt
 import json
 
@@ -101,25 +101,22 @@ async def generate_serp_queries(
     if learnings:
         prompt += f"\n\nHere are some learnings from previous research, use them to generate more specific queries: {' '.join(learnings)}"
 
-    response = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt()},
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-        ),
+    response = await get_client_response(
+        client=client,
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt()},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
     )
 
     try:
-        result = json.loads(response.choices[0].message.content)
-        queries = result.get("queries", [])
+        queries = response.get("queries", [])
         return [SerpQuery(**q) for q in queries][:num_queries]
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
-        print(f"Raw response: {response.choices[0].message.content}")
+        print(f"Raw response: {response}")
         return []
 
 
@@ -151,29 +148,26 @@ async def process_serp_result(
         f"<contents>{contents_str}</contents>"
     )
 
-    response = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt()},
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-        ),
+    response = await get_client_response(
+        client=client,
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt()},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
     )
 
     try:
-        result = json.loads(response.choices[0].message.content)
         return {
-            "learnings": result.get("learnings", [])[:num_learnings],
-            "followUpQuestions": result.get("followUpQuestions", [])[
+            "learnings": response.get("learnings", [])[:num_learnings],
+            "followUpQuestions": response.get("followUpQuestions", [])[
                 :num_follow_up_questions
             ],
         }
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
-        print(f"Raw response: {response.choices[0].message.content}")
+        print(f"Raw response: {response}")
         return {"learnings": [], "followUpQuestions": []}
 
 
@@ -199,21 +193,18 @@ async def write_final_report(
         f"Here are all the learnings from research:\n\n<learnings>\n{learnings_string}\n</learnings>"
     )
 
-    response = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt()},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-        ),
+    response = await get_client_response(
+        client=client,
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt()},
+            {"role": "user", "content": user_prompt},
+        ],
+        response_format={"type": "json_object"},
     )
 
     try:
-        result = json.loads(response.choices[0].message.content)
-        report = result.get("reportMarkdown", "")
+        report = response.get("reportMarkdown", "")
 
         # Append sources
         urls_section = "\n\n## Sources\n\n" + "\n".join(
@@ -222,7 +213,7 @@ async def write_final_report(
         return report + urls_section
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
-        print(f"Raw response: {response.choices[0].message.content}")
+        print(f"Raw response: {response}")
         return "Error generating report"
 
 

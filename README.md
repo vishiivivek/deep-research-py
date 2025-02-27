@@ -36,8 +36,9 @@ deep_research_py/
 
 ## Installation
 
-`uv tool install deep-research-py`
-
+```bash
+uv tool install deep-research-py && cp .env.example .env
+```
 
 ### Docker with OpenWebUI 
 
@@ -57,25 +58,21 @@ This can be configured on the OpenWebUI settings -> Connections -> Add connectio
 
 
 ## Configuration
+Open `.env` and replace placeholder values with your actual API keys
 
-Set your API keys as environment variables:
-
+### Set up environment variables in .env file:
 ```bash
 # Required: OpenAI API key
-export OPENAI_API_KEY=your-openai-key-here
-# If you want to use a third-party OpenAI compliant API (e.g., OpenRouter or Gemini), add the following below:
-# export OPENAI_API_ENDPOINT="http://localhost:1234/v1"
-# If you want to use another model or your third-party OpenAI compliant API doesn't support o3-mini, add following below:
-# export OPENAI_MODEL="<your_model_name>"
+# unless you're using DeepSeek or another OpenAI-compliant API.
+OPENAI_API_KEY=your-openai-key-here
 
 # Required: Firecrawl API key
-export FIRECRAWL_API_KEY=your-firecrawl-key-here
+FIRECRAWL_API_KEY=your-firecrawl-key-here
 # If you want to use your self-hosted Firecrawl, add the following below:
 # FIRECRAWL_BASE_URL="http://localhost:3002"
 ```
 
-
-
+Note: If you prefer, you can use DeepSeek instead of OpenAI. You can configure it in the `.env` file by setting the relevant API keys and model. Additionally, ensure that you set `DEFAULT_SERVICE` to `"deepseek"` if using DeepSeek or `"openai"` if using OpenAI.
 
 ## Usage
 
@@ -120,9 +117,10 @@ source .venv/bin/activate
 # Install in development mode
 uv pip install -e .
 
-# Set your API keys
-export OPENAI_API_KEY=your-openai-key-here
-export FIRECRAWL_KEY=your-firecrawl-key-here
+# Copy environment configuration
+cp .env.example .env
+
+# Set your API keys by editing the .env file
 
 # Run the tool
 deep-research
