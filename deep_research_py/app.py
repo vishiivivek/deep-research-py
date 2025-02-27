@@ -2,18 +2,16 @@ from dotenv import load_dotenv
 import typer
 from prompt_toolkit import PromptSession
 from rich.console import Console
-
 from enum import Enum
 from typing import Dict, Any
-import json
 
 from deep_research_py.deep_research import deep_research, write_final_report
 from deep_research_py.feedback import generate_feedback
-from deep_research_py.ai.providers import get_ai_client
+from deep_research_py.ai.providers import AIClientFactory
+from deep_research_py.config import EnvironmentConfig
 
 from whisk.kitchenai_sdk.kitchenai import KitchenAIApp
-
-from whisk.kitchenai_sdk.schema import (ChatInput, ChatResponse)
+from whisk.kitchenai_sdk.schema import ChatInput, ChatResponse
 
 load_dotenv()
 
@@ -36,9 +34,6 @@ class ResearchState(Enum):
 # Global state storage (you might want to use a proper database in production)
 conversation_states: Dict[str, Dict[str, Any]] = {}
 
-
-
-
 @kitchenai_app.chat.handler("chat.completions")
 async def main(input: ChatInput) -> ChatResponse:
     # Debug logging
@@ -51,20 +46,20 @@ async def main(input: ChatInput) -> ChatResponse:
         for msg in input.messages
     ])
     
-    # Extract conversation ID from metadata or generate from messages
-    conversation_id = None
+    # Get service and client using factory
+    service = EnvironmentConfig.get_default_provider()
+    client = AIClientFactory.get_client()
+    model = AIClientFactory.get_model()
     
-    # Try to get from metadata if it exists
+    # Rest of conversation ID logic...
+    conversation_id = None
     if input.metadata:
         conversation_id = input.metadata.get("conversation_id")
     
-    # If no conversation_id in metadata, try to generate one from messages
     if not conversation_id and input.messages:
-        # Use the first few messages to create a stable ID for the conversation
         conversation_text = "".join(msg.content for msg in input.messages[:1])
         conversation_id = str(hash(conversation_text))
     
-    # Fallback to default if we still don't have an ID
     if not conversation_id:
         conversation_id = "default"
     
@@ -72,7 +67,6 @@ async def main(input: ChatInput) -> ChatResponse:
     
     # Initialize or get existing state
     if conversation_id not in conversation_states:
-        # Always start fresh with AWAITING_QUERY for the first interaction
         conversation_states[conversation_id] = {
             "state": ResearchState.AWAITING_QUERY,
             "query": None,
@@ -83,8 +77,6 @@ async def main(input: ChatInput) -> ChatResponse:
             "current_question_idx": 0,
             "research_results": None
         }
-        
-
         return ChatResponse(
             content="🔍 What would you like to research?"
         )
@@ -115,10 +107,7 @@ async def main(input: ChatInput) -> ChatResponse:
         try:
             state_data["depth"] = int(current_message or "2")
             
-            # Generate follow-up questions
-            client = get_ai_client("openai", console)  # You might want to make this configurable
-            model = "o3-mini"  # Make configurable
-            
+            # Generate follow-up questions using factory client
             state_data["questions"] = await generate_feedback(state_data["query"], client, model)
             state_data["state"] = ResearchState.ASKING_QUESTIONS
             
@@ -151,10 +140,7 @@ async def main(input: ChatInput) -> ChatResponse:
             {chr(10).join(f"Q: {q} A: {a}" for q, a in zip(state_data['questions'], state_data['answers']))}
             """
             
-            # Perform research
-            client = get_ai_client("openai", console)
-            model = "o3-mini"
-            
+            # Perform research using factory client
             research_results = await deep_research(
                 query=combined_query,
                 breadth=state_data["breadth"],

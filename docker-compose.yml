@@ -11,7 +11,7 @@ services:
       - .env
     volumes:
       - .:/app
-    command: uv run whisk serve deep_research_py.whisk:kitchenai_app
+    command: uv run whisk serve deep_research_py.app:kitchenai_app
     logging:
       driver: "json-file"
       options:

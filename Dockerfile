@@ -19,11 +19,14 @@ COPY . ./
 # Install dependencies using UV with --system flag
 RUN uv sync
 
-# Run whisk with required dependencies
-CMD uv run whisk serve deep_research_py.whisk:kitchenai_app
+# Install the package in editable mode
+RUN uv pip install -e .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV MODULE_NAME=deep_research_py.whisk
 ENV VARIABLE_NAME=kitchenai_app
-ENV PORT=8000 
+ENV PORT=8000
+
+# Command to run the application
+CMD ["whisk", "serve", "deep_research_py.whisk:kitchenai_app"] 
