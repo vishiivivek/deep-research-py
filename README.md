@@ -40,6 +40,23 @@ deep_research_py/
 uv tool install deep-research-py && cp .env.example .env
 ```
 
+### Docker with OpenWebUI 
+
+![alt text](./openwebui.png)
+
+If you would rather chat with deep-reasearch with an OpenAI client like OpenWebUI, 
+You can build this project with docker. 
+
+```bash 
+docker compose up
+```
+The OpenAI endpoint should be set at `http://localhost:8000/v1`
+
+This can be configured on the OpenWebUI settings -> Connections -> Add connection 
+(api key can be anything)
+
+
+
 ## Configuration
 Open `.env` and replace placeholder values with your actual API keys
 
